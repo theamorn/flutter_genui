@@ -1,4 +1,4 @@
-# gen_ui
+# flutter_genui
 
 A new Flutter project.
 
