@@ -1,8 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:gen_ui/main.dart';
 import 'package:genui/genui.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
 import 'package:confetti/confetti.dart';
+
+// ─── Shared HUD Style Constants ─────────────────────────────────────────────
+final BoxDecoration hudDecoration = BoxDecoration(
+  color: const Color(
+    0xFF0F172A,
+  ).withValues(alpha: 0.85), // Deep dark blue/black
+  borderRadius: BorderRadius.circular(16),
+  border: Border.all(
+    color: Colors.cyanAccent.withValues(alpha: 0.3),
+    width: 1.5,
+  ),
+  boxShadow: [
+    BoxShadow(
+      color: Colors.cyanAccent.withValues(alpha: 0.1),
+      blurRadius: 10,
+      spreadRadius: 1,
+    ),
+  ],
+);
+
+const TextStyle hudTitleStyle = TextStyle(
+  color: Colors.cyanAccent,
+  fontWeight: FontWeight.bold,
+  fontSize: 18,
+  letterSpacing: 1.2,
+  fontFamily: 'monospace',
+);
+
+const TextStyle hudSubtitleStyle = TextStyle(
+  color: Colors.white70,
+  fontSize: 12,
+  fontFamily: 'monospace',
+);
+
+const TextStyle hudValueStyle = TextStyle(
+  color: Colors.white,
+  fontWeight: FontWeight.bold,
+  fontSize: 16,
+  fontFamily: 'monospace',
+);
 
 // ─── 1. ExpenseProgressLineGraph ─────────────────────────────────────────────
 
@@ -34,21 +73,22 @@ class _DraggableProgressBarState extends State<_DraggableProgressBar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Column(
+        Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Expense Progression',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
+            const Text('Expense Progression', style: hudTitleStyle),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: _progressColor(_progress).withValues(alpha: 0.15),
+                color: _progressColor(_progress).withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: _progressColor(_progress)),
+                boxShadow: [
+                  BoxShadow(
+                    color: _progressColor(_progress).withValues(alpha: 0.4),
+                    blurRadius: 6,
+                  ),
+                ],
               ),
               child: Text(
                 '฿$spent / ฿15,000',
@@ -56,17 +96,18 @@ class _DraggableProgressBarState extends State<_DraggableProgressBar> {
                   fontWeight: FontWeight.bold,
                   color: _progressColor(_progress),
                   fontSize: 13,
+                  fontFamily: 'monospace',
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 10),
         Text(
-          '${(_progress * 100).round()}% of monthly budget  •  ${widget.initialDaysLeft} days left',
-          style: const TextStyle(color: Colors.white, fontSize: 12),
+          '${(_progress * 100).round()}% of budget  •  ${widget.initialDaysLeft} days left',
+          style: hudSubtitleStyle,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) {
             return GestureDetector(
@@ -83,40 +124,25 @@ class _DraggableProgressBarState extends State<_DraggableProgressBar> {
                 child: Stack(
                   children: [
                     Container(
-                      height: 28,
+                      height: 24,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white24, width: 1),
                       ),
                     ),
                     FractionallySizedBox(
                       widthFactor: _progress,
                       child: Container(
-                        height: 28,
+                        height: 24,
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              _progressColor(_progress).withValues(alpha: 0.7),
-                              _progressColor(_progress),
+                              _progressColor(_progress).withValues(alpha: 0.5),
+                              _progressColor(_progress).withValues(alpha: 0.9),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: _progress * constraints.maxWidth - 14,
-                      top: 0,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _progressColor(_progress),
-                            width: 3,
-                          ),
                           boxShadow: [
                             BoxShadow(
                               color: _progressColor(
@@ -128,28 +154,40 @@ class _DraggableProgressBarState extends State<_DraggableProgressBar> {
                         ),
                       ),
                     ),
+                    Positioned(
+                      left: _progress * constraints.maxWidth - 12,
+                      top: 0,
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0F172A),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _progressColor(_progress),
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _progressColor(_progress),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
             );
           },
         ),
-        const SizedBox(height: 8),
-        Row(
+        const SizedBox(height: 12),
+        const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Month Start',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 11),
-            ),
-            Text(
-              'End of Month Goal',
-              style: TextStyle(
-                color: Colors.grey.shade500,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
+            Text('Month Start', style: hudSubtitleStyle),
+            Text('Goal Line', style: hudSubtitleStyle),
           ],
         ),
       ],
@@ -157,9 +195,9 @@ class _DraggableProgressBarState extends State<_DraggableProgressBar> {
   }
 
   Color _progressColor(double p) {
-    if (p < 0.5) return Colors.green;
-    if (p < 0.8) return Colors.orange;
-    return Colors.red;
+    if (p < 0.5) return Colors.greenAccent;
+    if (p < 0.8) return Colors.orangeAccent;
+    return Colors.redAccent;
   }
 }
 
@@ -193,40 +231,35 @@ class _DailyBalanceCardState extends State<_DailyBalanceCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Daily Check-in',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        Row(
+          children: [
+            const Icon(Icons.track_changes, color: Colors.cyanAccent),
+            const SizedBox(width: 8),
+            const Text('Daily HUD Check-in', style: hudTitleStyle),
+          ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Colors.white.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-              ),
-            ],
+            border: Border.all(color: Colors.cyanAccent.withValues(alpha: 0.2)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Daily Goal:',
-                style: TextStyle(color: Colors.black54),
-              ),
+              const Text('Daily Quota:', style: hudSubtitleStyle),
               Row(
                 children: [
                   _StepperButton(
                     icon: Icons.remove_circle_outline,
-                    color: Colors.red,
+                    color: Colors.redAccent,
                     onTap: () => setState(
                       () => _dailyLimit = (_dailyLimit - 50).clamp(50, 5000),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
@@ -234,14 +267,16 @@ class _DailyBalanceCardState extends State<_DailyBalanceCard> {
                       key: ValueKey(_dailyLimit),
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 18,
+                        color: Colors.cyanAccent,
+                        fontFamily: 'monospace',
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   _StepperButton(
                     icon: Icons.add_circle_outline,
-                    color: Colors.green,
+                    color: Colors.greenAccent,
                     onTap: () => setState(
                       () => _dailyLimit = (_dailyLimit + 50).clamp(50, 5000),
                     ),
@@ -251,54 +286,62 @@ class _DailyBalanceCardState extends State<_DailyBalanceCard> {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Spent Today:',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
+        const SizedBox(height: 20),
+        const Text('System Logs Today:', style: hudSubtitleStyle),
         const SizedBox(height: 8),
         ...widget.expenses.map((exp) {
           if (exp is! Map) return const SizedBox.shrink();
           final name = exp['name']?.toString() ?? '';
           final amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 6.0),
+            padding: const EdgeInsets.only(bottom: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
                     const Icon(
-                      Icons.receipt_long,
+                      Icons.arrow_right_alt,
                       size: 16,
-                      color: Colors.black54,
+                      color: Colors.cyanAccent,
                     ),
                     const SizedBox(width: 8),
-                    Text(name),
+                    Text(name, style: const TextStyle(color: Colors.white70)),
                   ],
                 ),
-                Text('฿${amount.toStringAsFixed(0)}'),
+                Text('฿${amount.toStringAsFixed(0)}', style: hudValueStyle),
               ],
             ),
           );
         }),
-        const Divider(height: 24),
+        const Divider(color: Colors.white24, height: 32),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Left for Dinner:',
+              'REMAINING FOR DINNER:',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.deepOrange,
+                color: Colors.orangeAccent,
+                fontFamily: 'monospace',
+                letterSpacing: 1.0,
               ),
             ),
-            Text(
-              '฿${widget.leftForDinner.toStringAsFixed(0)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: Colors.deepOrange,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orangeAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.orangeAccent),
+              ),
+              child: Text(
+                '฿${widget.leftForDinner.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.orangeAccent,
+                  fontFamily: 'monospace',
+                ),
               ),
             ),
           ],
@@ -322,7 +365,7 @@ class _StepperButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Icon(icon, color: color, size: 30),
+      child: Icon(icon, color: color, size: 28),
     );
   }
 }
@@ -353,7 +396,7 @@ class _AwardCardState extends State<_AwardCard>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _glowAnim = Tween<double>(begin: 4.0, end: 20.0).animate(
+    _glowAnim = Tween<double>(begin: 4.0, end: 15.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
   }
@@ -375,12 +418,10 @@ class _AwardCardState extends State<_AwardCard>
           blastDirectionality: BlastDirectionality.explosive,
           shouldLoop: false,
           colors: const [
-            Colors.green,
-            Colors.yellow,
-            Colors.orange,
-            Colors.pink,
-            Colors.blue,
-            Colors.purple,
+            Colors.cyanAccent,
+            Colors.greenAccent,
+            Colors.purpleAccent,
+            Colors.yellowAccent,
           ],
           numberOfParticles: 40,
           gravity: 0.3,
@@ -393,42 +434,53 @@ class _AwardCardState extends State<_AwardCard>
                 animation: _glowAnim,
                 builder: (context, child) {
                   return CircleAvatar(
-                    backgroundColor: Colors.green.shade200,
-                    radius: 28,
+                    backgroundColor: Colors.greenAccent.withValues(alpha: 0.1),
+                    radius: 32,
                     child: Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        border: Border.all(color: Colors.greenAccent, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.greenAccent.withValues(alpha: 0.8),
+                            color: Colors.greenAccent.withValues(alpha: 0.5),
                             blurRadius: _glowAnim.value,
                             spreadRadius: _glowAnim.value * 0.4,
                           ),
                         ],
                       ),
                       child: const Icon(
-                        Icons.card_giftcard,
-                        color: Colors.white,
-                        size: 28,
+                        Icons.generating_tokens,
+                        color: Colors.greenAccent,
+                        size: 32,
                       ),
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '🎉 Great Job!',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    'OBJECTIVE SECURED',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.greenAccent,
+                      letterSpacing: 1.5,
+                      fontFamily: 'monospace',
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
-                    'You are far under your spending goal! You have ฿${widget.reward.toStringAsFixed(0)} to reward yourself. Tap the icon to celebrate! 🎊',
-                    style: const TextStyle(color: Colors.black87),
+                    'Budget highly optimized. You have accrued a surplus of ฿${widget.reward.toStringAsFixed(0)} for discretionary spending. Tap token to initiate reward sequence.',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      height: 1.4,
+                      fontSize: 13,
+                    ),
                   ),
                 ],
               ),
@@ -462,16 +514,13 @@ final catalogItemsList = <CatalogItem>[
           (data?['progressPercentage'] as num?)?.toDouble() ?? 0.65;
       final daysLeft = (data?['daysLeft'] as num?)?.toInt() ?? 10;
 
-      return Card(
+      return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: _DraggableProgressBar(
-            initialProgress: progress,
-            initialDaysLeft: daysLeft,
-          ),
+        padding: const EdgeInsets.all(20.0),
+        decoration: hudDecoration,
+        child: _DraggableProgressBar(
+          initialProgress: progress,
+          initialDaysLeft: daysLeft,
         ),
       );
     },
@@ -498,20 +547,22 @@ final catalogItemsList = <CatalogItem>[
       final leftForDinner = (data?['leftForDinner'] as num?)?.toDouble() ?? 100;
       final expensesList = data?['expenses'] as List<Object?>? ?? [];
 
-      return Card(
+      return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
-        elevation: 3,
-        color: Theme.of(
-          context.buildContext,
-        ).colorScheme.primaryContainer.withValues(alpha: 0.4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: _DailyBalanceCard(
-            initialLimit: dailyLimit,
-            leftForDinner: leftForDinner,
-            expenses: expensesList,
-          ),
+        padding: const EdgeInsets.all(20.0),
+        decoration: hudDecoration.copyWith(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueAccent.withValues(alpha: 0.1),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: _DailyBalanceCard(
+          initialLimit: dailyLimit,
+          leftForDinner: leftForDinner,
+          expenses: expensesList,
         ),
       );
     },
@@ -565,141 +616,180 @@ final catalogItemsList = <CatalogItem>[
         return 'https://logo.clearbit.com/$ticker.com';
       }
 
-      return Card(
+      return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.red.shade200, width: 2),
+        padding: const EdgeInsets.all(20.0),
+        decoration: hudDecoration.copyWith(
+          border: Border.all(
+            color: Colors.purpleAccent.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.purpleAccent.withValues(alpha: 0.1),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.trending_down, color: Colors.red.shade700),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Passive Income & Stocks',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.analytics, color: Colors.purpleAccent),
+                const SizedBox(width: 8),
+                const Text(
+                  'Asset Portfolio Analysis',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: Colors.purpleAccent,
+                    fontFamily: 'monospace',
                   ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              ...stocks.map((stock) {
-                if (stock is! Map) return const SizedBox.shrink();
-                final name = stock['name']?.toString() ?? 'Stock';
-                final drop = (stock['dropPercent'] as num?)?.toDouble() ?? 0.0;
-                final val = (stock['value'] as num?)?.toDouble() ?? 0.0;
-                final logoUrl = getLogoUrl(stock);
-                final isPositive = drop <= 0;
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ...stocks.map((stock) {
+              if (stock is! Map) return const SizedBox.shrink();
+              final name = stock['name']?.toString() ?? 'Stock';
+              final drop = (stock['dropPercent'] as num?)?.toDouble() ?? 0.0;
+              final val = (stock['value'] as num?)?.toDouble() ?? 0.0;
+              final logoUrl = getLogoUrl(stock);
+              final isPositive = drop <= 0;
+              final Color indicatorColor = isPositive
+                  ? Colors.greenAccent
+                  : Colors.redAccent;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          logoUrl,
-                          width: 40,
-                          height: 40,
-                          fit: BoxFit.contain,
-                          errorBuilder: (ctx, _, __) => Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.business,
-                              color: Colors.blueGrey,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              '\$${val.toStringAsFixed(0)} USD',
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isPositive
-                              ? Colors.green.shade50
-                              : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          isPositive ? '▲ $drop%' : '▼ $drop%',
-                          style: TextStyle(
-                            color: isPositive
-                                ? Colors.green.shade700
-                                : Colors.red.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: 8),
-              Container(
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white.withValues(alpha: 0.03),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.info_outline,
-                      color: Colors.blue,
-                      size: 20,
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.all(2),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(
+                          logoUrl,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.contain,
+                          errorBuilder: (ctx, _, __) => Container(
+                            width: 36,
+                            height: 36,
+                            color: Colors.black,
+                            child: const Icon(
+                              Icons.business,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        message,
-                        style: const TextStyle(color: Colors.blue),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            '\$${val.toStringAsFixed(0)} USD',
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: indicatorColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: indicatorColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isPositive
+                                ? Icons.trending_up
+                                : Icons.trending_down,
+                            color: indicatorColor,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${drop.abs()}%',
+                            style: TextStyle(
+                              color: indicatorColor,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
+              );
+            }),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.cyanAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.cyanAccent.withValues(alpha: 0.3),
+                ),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.info_outline,
+                    color: Colors.cyanAccent,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: Colors.cyanAccent,
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       );
     },
@@ -713,15 +803,23 @@ final catalogItemsList = <CatalogItem>[
       final data = context.data is Map ? context.data as Map : null;
       final reward = (data?['rewardAvailable'] as num?)?.toDouble() ?? 2000;
 
-      return Card(
+      return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
-        elevation: 2,
-        color: Colors.green.shade50,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: _AwardCard(reward: reward),
+        padding: const EdgeInsets.all(20.0),
+        decoration: hudDecoration.copyWith(
+          border: Border.all(
+            color: Colors.greenAccent.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.greenAccent.withValues(alpha: 0.1),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
         ),
+        child: _AwardCard(reward: reward),
       );
     },
   ),
@@ -753,83 +851,112 @@ final catalogItemsList = <CatalogItem>[
           [];
       final id = (data?['id'] as String?) ?? 'unknown';
 
-      return Card(
+      return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
-        elevation: 4,
         clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        decoration: hudDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (imageUrl.isNotEmpty)
-              Image.network(
-                imageUrl,
-                height: 220,
-                fit: BoxFit.cover,
-                errorBuilder: (ctx, error, stackTrace) {
-                  // Fallback: search via Google Images for the item
-                  final fallbackUrl =
-                      'https://source.unsplash.com/600x400/?${Uri.encodeComponent(name)}';
-                  return Image.network(
-                    fallbackUrl,
+            Stack(
+              children: [
+                if (imageUrl.isNotEmpty)
+                  Image.network(
+                    imageUrl,
                     height: 220,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, error, stackTrace) {
+                      final fallbackUrl =
+                          'https://source.unsplash.com/600x400/?${Uri.encodeComponent(name)}';
+                      return Image.network(
+                        fallbackUrl,
+                        height: 220,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 220,
+                          color: const Color(0xFF1E293B),
+                          child: const Icon(
+                            Icons.extension,
+                            size: 60,
+                            color: Colors.cyanAccent,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                else
+                  Image.network(
+                    'https://source.unsplash.com/600x400/?${Uri.encodeComponent(name)},product',
+                    height: 220,
+                    width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
                       height: 220,
-                      color: Colors.grey[200],
+                      color: const Color(0xFF1E293B),
                       child: const Icon(
-                        Icons.shopping_bag,
+                        Icons.extension,
                         size: 60,
-                        color: Colors.grey,
+                        color: Colors.cyanAccent,
                       ),
                     ),
-                  );
-                },
-              )
-            else
-              Image.network(
-                'https://source.unsplash.com/600x400/?${Uri.encodeComponent(name)},product',
-                height: 220,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  height: 220,
-                  color: Colors.grey[200],
-                  child: const Icon(
-                    Icons.shopping_bag,
-                    size: 60,
-                    color: Colors.grey,
+                  ),
+                // Cyberpunk overlay gradient on images
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          const Color(0xFF0F172A).withValues(alpha: 0.9),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                Positioned(
+                  bottom: 16,
+                  left: 20,
+                  right: 20,
+                  child: Text(
+                    name.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.cyanAccent,
+                      letterSpacing: 2.0,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   ...specs.map(
                     (spec) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(
-                            Icons.check_circle,
-                            size: 14,
-                            color: Colors.green,
+                            Icons.memory,
+                            size: 16,
+                            color: Colors.cyanAccent,
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               spec,
-                              style: const TextStyle(color: Colors.white),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontFamily: 'monospace',
+                              ),
                             ),
                           ),
                         ],
@@ -837,38 +964,69 @@ final catalogItemsList = <CatalogItem>[
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    '฿${price.toStringAsFixed(0)}',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(
-                        itemContext.buildContext,
-                      ).colorScheme.primary,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.cyanAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.cyanAccent.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'EST. VALUE',
+                          style: TextStyle(
+                            color: Colors.cyanAccent,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        Text(
+                          '฿${price.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Source $url',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(
-                        itemContext.buildContext,
-                      ).colorScheme.primary,
+                  const SizedBox(height: 12),
+                  if (url.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.link, size: 14, color: Colors.white54),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Data Source: $url',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white54,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  ElevatedButton.icon(
+                    const SizedBox(height: 20),
+                  ],
+                  ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(
-                        itemContext.buildContext,
-                      ).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 52),
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      padding: EdgeInsets.zero,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 4,
                     ),
                     onPressed: () async {
                       itemContext.dispatchEvent(
@@ -884,12 +1042,39 @@ final catalogItemsList = <CatalogItem>[
                         ),
                       );
                     },
-                    icon: const Icon(Icons.shopping_cart_checkout),
-                    label: const Text(
-                      'Confirm Purchase',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00E5FF), Color(0xFF2979FF)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.cyanAccent.withValues(alpha: 0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Container(
+                        height: 54,
+                        alignment: Alignment.center,
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.shopping_cart, color: Colors.black87),
+                            SizedBox(width: 10),
+                            Text(
+                              'AUTHORIZE PROCUREMENT',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
