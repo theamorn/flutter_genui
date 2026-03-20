@@ -2,31 +2,55 @@ import 'package:flutter/material.dart';
 import 'package:genui/genui.dart';
 
 import 'catalog.dart';
-// import 'package:firebase_core/firebase_core.dart'; // Uncomment this once you run `flutterfire configure`
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_ai/firebase_ai.dart';
 import 'package:genui_firebase_ai/genui_firebase_ai.dart';
-// import 'firebase_options.dart'; // Uncomment this once you run `flutterfire configure`
+import 'package:url_launcher/url_launcher.dart';
+import 'firebase_options.dart';
+
+class CustomA2uiMessageProcessor extends A2uiMessageProcessor {
+  CustomA2uiMessageProcessor({required super.catalogs});
+
+  @override
+  void handleUiEvent(UiEvent event) async {
+    super.handleUiEvent(event);
+    // Host intercepts the 'buy_now' action and handles the launch externally
+    if (event is UserActionEvent && event.name == 'buy_now') {
+      final url = event.context['url'] as String;
+      final uri = Uri.parse(url);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // NOTE: You must run `flutterfire configure` to generate firebase_options.dart for your Android tablet.
-  // Then uncomment the import and the line below to initialize Firebase.
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
-  runApp(const SmartTravelPlannerApp());
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  runApp(const SmartAssistantApp());
 }
 
-class SmartTravelPlannerApp extends StatelessWidget {
-  const SmartTravelPlannerApp({super.key});
+class SmartAssistantApp extends StatelessWidget {
+  const SmartAssistantApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'A2UI & GenUI Demo',
+      title: 'HUD',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.light,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: Colors.black,
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.cyan,
+          secondary: Colors.cyanAccent,
+          surface: Colors.black,
+        ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(
+            color: Colors.cyanAccent,
+            fontFamily: 'monospace',
+          ),
         ),
         useMaterial3: true,
       ),
@@ -46,63 +70,66 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   late final ContentGenerator _contentGenerator;
   late final GenUiConversation _conversation;
+  final _surfaceIds = <String>[];
 
   @override
   void initState() {
     super.initState();
-    
-    // Create the message processor with our 5 new story widgets
-    final a2uiMessageProcessor = A2uiMessageProcessor(catalogs: [catalog]);
-    
-    // A system prompt designed explicitly to guide the real AI through the 13-step Tech Talk story.
+
+    // Create the custom message processor with our 5 new story widgets
+    final a2uiMessageProcessor = CustomA2uiMessageProcessor(
+      catalogs: [catalog],
+    );
     const systemInstruction = '''
-    You are a highly advanced Financial Statement Assistant acting as a Jarvis-like entity.
-    You are in a live tech demonstration. Your goal is to guide the user through a specific 13-step story.
-    
-    Here is the exact state machine you should follow. You MUST use the provided tools to generate the UI instead of just talking.
-    
-    1. Greeting: Acknowledge the user, state they are in the 'green' and perfectly on their spending plan to the end of the month. Use text only.
-    
-    2. Daily Balance: When asked "How much money do I have left?" or similar, you MUST use the `DailyBalanceWidget` tool. 
-       - Set `dailyLimit` to 300.
-       - Set `leftForDinner` to 70.
-       - Set the `expenses` list to include Coffee (50), Lunch (80), and MRT to work (40).
-       - Accompany this with a short text explaining the 170 spent and 70 left.
-       
-    3. Stocks / Passive Income: When asked "How about my stocks and passive income today?" or similar, you MUST use the `StockWidget` tool.
-       - Generate an array of two stocks.
-       - Stock A is down 10%. Stock B is down 4.5%.
-       - Add a reassuring message saying they are still solid long-term.
-       
-    4. Expense Summary & Shopping: When asked "Give me an expense summary. Is it enough to do some shopping?", you MUST use the `ExpenseProgressLineGraph` and `RecommendExpenseWidget` tools.
-       - The user has a 2000 Baht reward available for being under budget.
-       
-    5. Sneaker Shopping: When the user says "I haven't bought new shoes in a long time", you MUST use the `ProductShoppingWidget` tool.
-       - Show the user some new sneakers costing exactly 1850 THB.
-       - Provide standard sneaker specifications.
-       
-    6. Agent Checkout: When the user says "Awesome, buy it and checkout", acknowledge the purchase. Assume the system has already fired the 'buy_now' UiEvent. Tell the user you have updated the expense summary.
-    
-    Follow this structure strictly. Do NOT hallucinate other tools. Provide concise, friendly assistant responses alongside your tool calls.
-    ''';
+You are an expert in financial assistant. Every time I ask you a question,
+        you should generate UI that displays one financial answer related to that word if it's not relate
+        you just send the text back. Use my information to help answer the questions
+      
+      <Information>
+      Name: Amorn 
+      Nickname: Bank
+      Company: KBTG
+      Salary: 30,000 Baht
+      Target spend per day: 500 Baht
+      Transaction Today:
+        - Coffee: 50 Baht
+        - Lunch: 80 Baht
+        - MRT to work: 40 Baht
+      Stocks:
+        - Google: 10 stock at 150 Dolalrs
+        - Apple: 5 stock at 300 Dolalrs
+      Expense Status: Good progress towards end of month. Now spend 12,000 Baht.
+      </Information>
+''';
 
     _contentGenerator = FirebaseAiContentGenerator(
       catalog: catalog,
       systemInstruction: systemInstruction,
-      // Note: FirebaseAiContentGenerator doesn't require explicitly passing additionalTools
-      // as it automatically provides the A2UI surface manipulation tools.
+      modelCreator:
+          ({required configuration, systemInstruction, toolConfig, tools}) {
+            return GeminiGenerativeModel(
+              FirebaseAI.googleAI().generativeModel(
+                model: 'gemini-3-flash-preview',
+                systemInstruction: systemInstruction,
+                tools: tools,
+                toolConfig: toolConfig,
+              ),
+            );
+          },
     );
-    
+
     _conversation = GenUiConversation(
       a2uiMessageProcessor: a2uiMessageProcessor,
       contentGenerator: _contentGenerator,
+      onSurfaceAdded: _onSurfaceAdded,
+      onSurfaceDeleted: _onSurfaceDeleted,
       onError: (exception) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${exception.error}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${exception.error}')));
       },
     );
   }
@@ -113,6 +140,20 @@ class _ChatScreenState extends State<ChatScreen> {
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onSurfaceAdded(SurfaceAdded update) {
+    print("surface added ${update.surfaceId}");
+    setState(() {
+      _surfaceIds.add(update.surfaceId);
+    });
+  }
+
+  void _onSurfaceDeleted(SurfaceRemoved update) {
+    print("surface deleted ${update.surfaceId}");
+    setState(() {
+      _surfaceIds.remove(update.surfaceId);
+    });
   }
 
   void _sendMessage() {
@@ -138,94 +179,299 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Financial Statement Assistant'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ValueListenableBuilder<List<ChatMessage>>(
-              valueListenable: _conversation.conversation,
-              builder: (context, messages, _) {
-                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    
-                    if (message is UserMessage) {
-                      return MessageBubble(text: message.text, isUser: true);
-                    } else if (message is AiTextMessage) {
-                      return MessageBubble(text: message.text, isUser: false);
-                    } else if (message is AiUiMessage) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: GenUiSurface(
-                          host: _conversation.host,
-                          surfaceId: message.surfaceId,
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
+  void _showCatalogDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Colors.cyan),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: const Text(
+            'Catalog Widgets',
+            style: TextStyle(color: Colors.cyanAccent, fontFamily: 'monospace'),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: catalogItemsList.length,
+              itemBuilder: (context, index) {
+                final item = catalogItemsList[index];
+                return ListTile(
+                  leading: const Icon(Icons.extension, color: Colors.cyan),
+                  title: Text(
+                    item.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+
+                    showDialog(
+                      context: context,
+                      builder: (childContext) {
+                        final dataModel = DataModel();
+                        final dataContext = DataContext(dataModel, '/');
+                        final itemContext = CatalogItemContext(
+                          data: {},
+                          id: item.name,
+                          buildChild: (id, [ctx]) => const SizedBox.shrink(),
+                          dispatchEvent: (event) {},
+                          buildContext: childContext,
+                          dataContext: dataContext,
+                          getComponent: (id) => null,
+                          surfaceId: 'preview_${item.name}',
+                        );
+
+                        return AlertDialog(
+                          backgroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            side: const BorderSide(color: Colors.cyan),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          title: Text(
+                            item.name,
+                            style: const TextStyle(
+                              color: Colors.cyanAccent,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          content: SizedBox(
+                            width: double.maxFinite,
+                            child: SingleChildScrollView(
+                              child: item.widgetBuilder(itemContext),
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(childContext).pop(),
+                              child: const Text(
+                                'Close',
+                                style: TextStyle(
+                                  color: Colors.cyan,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
                   },
                 );
               },
             ),
           ),
-          
-          // Where the magic happens: A2UI progressively renders here (now handled by ListView!)
-          
-          // Input Section
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _textController,
-                      decoration: InputDecoration(
-                        hintText: "E.g., How much money do I have left?",
-                        filled: true,
-                        fillColor: Colors.grey[200],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                      ),
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: ValueListenableBuilder<bool>(
-                      valueListenable: _conversation.isProcessing,
-                      builder: (context, isProcessing, _) {
-                        return IconButton(
-                          icon: isProcessing 
-                            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Icon(Icons.send, color: Colors.white),
-                          onPressed: isProcessing ? null : _sendMessage,
-                        );
-                      }
-                    ),
-                  ),
-                ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Colors.cyan, fontFamily: 'monospace'),
               ),
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'HUD',
+          style: TextStyle(
+            fontFamily: 'monospace',
+            letterSpacing: 2,
+            color: Colors.cyan,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.widgets, color: Colors.cyan),
+            onPressed: () => _showCatalogDialog(context),
+            tooltip: 'Catalog Widgets',
           ),
         ],
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.cyan),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.0),
+          child: Container(color: Colors.cyan, height: 1.0),
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const NetworkImage(
+              'https://transparenttextures.com/patterns/cubes.png',
+            ), // A subtle grid texture
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.cyan.withOpacity(0.05),
+              BlendMode.dstIn,
+            ),
+          ),
+        ),
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: ValueListenableBuilder<List<ChatMessage>>(
+                    valueListenable: _conversation.conversation,
+                    builder: (context, messages, _) {
+                      WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => _scrollToBottom(),
+                      );
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          if (message is UserMessage) {
+                            return MessageBubble(
+                              text: message.text,
+                              isUser: true,
+                            );
+                          } else if (message is AiTextMessage) {
+                            return MessageBubble(
+                              text: message.text,
+                              isUser: false,
+                            );
+                          } else if (message is AiUiMessage) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 16.0),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: Colors.cyan.withOpacity(0.5),
+                                ),
+                                color: Colors.cyan.withOpacity(0.05),
+                              ),
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "SYSTEM_WIDGET_RENDER // ${message.surfaceId}",
+                                    style: const TextStyle(
+                                      color: Colors.cyan,
+                                      fontSize: 10,
+                                      fontFamily: 'monospace',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  GenUiSurface(
+                                    host: _conversation.host,
+                                    surfaceId: message.surfaceId,
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      );
+                    },
+                  ),
+                ),
+                // Input Section
+                SafeArea(
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Colors.cyan, width: 1),
+                      ),
+                      color: Colors.black,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _textController,
+                            style: const TextStyle(
+                              color: Colors.cyanAccent,
+                              fontFamily: 'monospace',
+                            ),
+                            decoration: InputDecoration(
+                              hintText: "Enter command override...",
+                              hintStyle: TextStyle(
+                                color: Colors.cyan.withOpacity(0.5),
+                                fontFamily: 'monospace',
+                              ),
+                              filled: true,
+                              fillColor: Colors.black,
+                              enabledBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(color: Colors.cyan),
+                                borderRadius: BorderRadius.zero,
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Colors.cyanAccent,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.zero,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 15,
+                              ),
+                            ),
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: _conversation.isProcessing,
+                          builder: (context, isProcessing, _) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.cyan),
+                              ),
+                              child: IconButton(
+                                icon: isProcessing
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.cyanAccent,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.send,
+                                        color: Colors.cyanAccent,
+                                      ),
+                                onPressed: isProcessing ? null : _sendMessage,
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Opacity(
+              opacity: 0.1,
+              child: const Positioned(
+                top: 16,
+                left: 16,
+                child: IgnorePointer(child: AnimatedJarvisDate()),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -235,46 +481,351 @@ class MessageBubble extends StatelessWidget {
   final String text;
   final bool isUser;
 
-  const MessageBubble({
-    super.key,
-    required this.text,
-    required this.isUser,
-  });
+  const MessageBubble({super.key, required this.text, required this.isUser});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: [
-          if (!isUser) const CircleAvatar(child: Icon(Icons.smart_toy)),
-          if (!isUser) const SizedBox(width: 8),
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isUser ? theme.colorScheme.primary : Colors.grey[300],
-                borderRadius: BorderRadius.circular(20).copyWith(
-                  bottomRight: isUser ? const Radius.circular(0) : const Radius.circular(20),
-                  bottomLeft: isUser ? const Radius.circular(20) : const Radius.circular(0),
+    return Row(
+      mainAxisAlignment: isUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 6.0),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isUser ? Colors.cyan.withOpacity(0.1) : Colors.transparent,
+              border: Border(
+                left: BorderSide(
+                  color: isUser ? Colors.transparent : Colors.cyan,
+                  width: 2,
                 ),
-              ),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: isUser ? Colors.white : Colors.black87,
-                  fontSize: 16,
+                right: BorderSide(
+                  color: isUser ? Colors.cyan : Colors.transparent,
+                  width: 2,
                 ),
               ),
             ),
+            child: Column(
+              crossAxisAlignment: isUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isUser ? "USER_INPUT >" : "AI >",
+                  style: const TextStyle(
+                    color: Colors.cyan,
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  text,
+                  textAlign: isUser ? TextAlign.right : TextAlign.left,
+                  style: TextStyle(
+                    color: isUser ? Colors.cyanAccent : Colors.white,
+                    fontSize: 15,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
           ),
-          if (isUser) const SizedBox(width: 8),
-          if (isUser) const CircleAvatar(child: Icon(Icons.person)),
+        ),
+      ],
+    );
+  }
+}
+
+class AnimatedJarvisDate extends StatefulWidget {
+  const AnimatedJarvisDate({super.key});
+  @override
+  State<AnimatedJarvisDate> createState() => _AnimatedJarvisDateState();
+}
+
+class _AnimatedJarvisDateState extends State<AnimatedJarvisDate>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 15),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        _buildDateRing(),
+        const SizedBox(height: 12),
+        _buildTickingTime(),
+        const SizedBox(height: 16),
+        _buildBatteryRing(),
+      ],
+    );
+  }
+
+  Widget _buildDateRing() {
+    final now = DateTime.now();
+    final month = _monthString(now.month);
+    final day = now.day.toString().padLeft(2, '0');
+
+    return SizedBox(
+      width: 120,
+      height: 120,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _controller.value * 2 * 3.1415926535,
+                child: CustomPaint(
+                  size: const Size(120, 120),
+                  painter: JarvisArcPainter(),
+                ),
+              );
+            },
+          ),
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle:
+                    -_controller.value * 2 * 3.1415926535, // Reverse rotation
+                child: CustomPaint(
+                  size: const Size(100, 100),
+                  painter: JarvisInnerArcPainter(),
+                ),
+              );
+            },
+          ),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.cyan.withOpacity(0.3), width: 1),
+              color: Colors.cyan.withOpacity(0.1),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                month,
+                style: TextStyle(
+                  color: Colors.cyanAccent.withOpacity(0.9),
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                  shadows: [
+                    Shadow(
+                      color: Colors.cyanAccent.withOpacity(0.5),
+                      blurRadius: 4,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                day,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontFamily: 'monospace',
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(color: Colors.white.withOpacity(0.5), blurRadius: 4),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
+
+  Widget _buildTickingTime() {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final now = DateTime.now();
+        final hours = now.hour.toString().padLeft(2, '0');
+        final minutes = now.minute.toString().padLeft(2, '0');
+        final seconds = now.second.toString().padLeft(2, '0');
+        return Text(
+          "$hours:$minutes:$seconds",
+          style: TextStyle(
+            color: Colors.cyanAccent.withOpacity(0.85),
+            fontFamily: 'monospace',
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.5,
+            shadows: [
+              Shadow(color: Colors.cyanAccent.withOpacity(0.6), blurRadius: 6),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBatteryRing() {
+    return SizedBox(
+      width: 80,
+      height: 80,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              return Transform.rotate(
+                angle: _controller.value * 2 * 3.1415926535,
+                child: CustomPaint(
+                  size: const Size(80, 80),
+                  painter: JarvisBatteryPainter(),
+                ),
+              );
+            },
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "PWR",
+                style: TextStyle(
+                  color: Colors.cyanAccent.withOpacity(0.8),
+                  fontFamily: 'monospace',
+                  fontSize: 8,
+                  letterSpacing: 1,
+                  shadows: [
+                    Shadow(
+                      color: Colors.cyanAccent.withOpacity(0.4),
+                      blurRadius: 3,
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                "98%",
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontFamily: 'monospace',
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(color: Colors.white.withOpacity(0.5), blurRadius: 5),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _monthString(int month) {
+    const months = [
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
+    ];
+    return months[month - 1];
+  }
+}
+
+class JarvisBatteryPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.cyanAccent.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    // Inner battery solid arc
+    final solidPaint = Paint()
+      ..color = Colors.cyan.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0;
+    canvas.drawArc(rect, 0, 3.1415 * 2 * 0.98, false, solidPaint); // 98% full
+
+    // Outer rotating decorative arcs
+    canvas.drawArc(rect, 0.5, 1.0, false, paint);
+    canvas.drawArc(rect, 2.5, 1.0, false, paint);
+    canvas.drawArc(rect, 4.5, 0.5, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class JarvisArcPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.cyanAccent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    // Draw thick outer arcs
+    canvas.drawArc(rect, 0, 1.5, false, paint);
+    canvas.drawArc(rect, 2.5, 0.5, false, paint);
+    canvas.drawArc(rect, 3.5, 1.2, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class JarvisInnerArcPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.cyan.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+
+    // Draw thinner internal tracker arcs
+    canvas.drawArc(rect, 1.0, 2.0, false, paint);
+    canvas.drawArc(rect, 4.0, 1.0, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
