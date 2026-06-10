@@ -8,6 +8,31 @@ import 'package:genui_firebase_ai/genui_firebase_ai.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'firebase_options.dart';
 
+String _formatDisplayDate(DateTime date) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final day = date.day.toString().padLeft(2, '0');
+  return '$day ${months[date.month - 1]} ${date.year}';
+}
+
+String _formatDisplayTime(DateTime date) {
+  final hour = date.hour.toString().padLeft(2, '0');
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
 class CustomA2uiMessageProcessor extends A2uiMessageProcessor {
   CustomA2uiMessageProcessor({required super.catalogs});
 
@@ -83,15 +108,20 @@ class _ChatScreenState extends State<ChatScreen> {
     final a2uiMessageProcessor = CustomA2uiMessageProcessor(
       catalogs: [catalog],
     );
-    const systemInstruction = '''
+    
+    final now = DateTime.now();
+    final today = _formatDisplayDate(now);
+    final currentTime = _formatDisplayTime(now);
+    final systemInstruction = '''
 You are an expert in financial assistant. Every time I ask you a question,
         you should generate UI that displays one financial answer related to that word if it's not relate
         you just send the text back. Use my information to help answer the questions
       
       <Information>
+      Today: $today
+      Current time: $currentTime
       Name: Amorn 
       Nickname: Bank
-      Company: KBTG
       Salary: 30,000 Baht
       Target spend per day: 500 Baht
       Transaction Today:
@@ -112,7 +142,7 @@ You are an expert in financial assistant. Every time I ask you a question,
           ({required configuration, systemInstruction, toolConfig, tools}) {
             return GeminiGenerativeModel(
               FirebaseAI.googleAI().generativeModel(
-                model: 'gemini-3-flash-preview',
+                model: 'gemini-3.5-flash',
                 systemInstruction: systemInstruction,
                 tools: tools,
                 toolConfig: toolConfig,
@@ -462,12 +492,12 @@ You are an expert in financial assistant. Every time I ask you a question,
                 ),
               ],
             ),
-            Opacity(
-              opacity: 0.1,
-              child: const Positioned(
-                top: 16,
-                left: 16,
-                child: IgnorePointer(child: AnimatedJarvisDate()),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: Opacity(
+                opacity: 0.1,
+                child: const IgnorePointer(child: AnimatedJarvisDate()),
               ),
             ),
           ],
